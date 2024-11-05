@@ -1597,6 +1597,13 @@ namespace CountlySDK.CountlyCommon
                 UtilityHelper.CountlyLogging("[CountlyBase] ChangeDeviceId: New device id cannot be null or empty.");
                 return;
             }
+            DeviceId dId = await DeviceData.GetDeviceId();
+            string oldId = dId.deviceId;
+
+            if (newDeviceId.Equals(oldId)) {
+                UtilityHelper.CountlyLogging("[CountlyBase] ChangeDeviceId: New device id is equal to the current one, returning");
+                return;
+            }
 
             if (!serverSideMerge) {
                 //if no server side merge is needed, we just end the previous session and start a new session with the new id
@@ -1620,9 +1627,6 @@ namespace CountlySDK.CountlyCommon
                 }
             } else {
                 //need server merge, therefore send special request
-                DeviceId dId = await DeviceData.GetDeviceId();
-                string oldId = dId.deviceId;
-
                 //change device ID
                 await DeviceData.SetPreferredDeviceIdMethod(DeviceIdMethodInternal.developerSupplied, newDeviceId);
 
@@ -1640,7 +1644,7 @@ namespace CountlySDK.CountlyCommon
             }
         }
 
-        
+
         /// <summary>
         /// Set the device id
         /// </summary>
