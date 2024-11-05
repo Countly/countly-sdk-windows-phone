@@ -1,6 +1,8 @@
 ## XX.XX.XX
 * Added a new function "SetId(newDeviceId)" for managing device id changes according to the device ID Type.
 
+* Mitigated an issue where changing to same previous id was permitted, not anymore.
+
 ## 24.1.1
 * Fixed a bug where same, null, and empty keys were permitted in the Segmentation.
 * Fixed an issue where some requests are not url encoded.
