@@ -1660,6 +1660,7 @@ namespace CountlySDK.CountlyCommon
                 // now we change it without merging
                 withMerge = false;
             }
+            UtilityHelper.CountlyLogging("[CountlyBase] SetId, newDeviceId: [" + newDeviceId + "], withMerge: [" + withMerge.ToString() + "]");
 
             await ChangeDeviceId(newDeviceId, withMerge);
         }
