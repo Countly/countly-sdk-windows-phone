@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Runtime.Serialization;
 using System.Text;
@@ -12,6 +14,7 @@ using CountlySDK.CountlyCommon.Entities;
 using CountlySDK.Entities;
 using CountlySDK.Entities.EntityBase;
 using CountlySDK.Helpers;
+using Newtonsoft.Json;
 using Xunit;
 using static CountlySDK.CountlyCommon.CountlyBase;
 using static CountlySDK.Helpers.TimeHelper;
@@ -467,6 +470,93 @@ namespace TestProject_common
             }
 
             return result;
+        }
+
+        internal static void ValidateBaseParams(Dictionary<string, string> queryParams, string deviceId, string appKey, long timestamp = 0)
+        {
+            //Time related params
+            if (timestamp > 0) {
+                TimeSpan time = TimeSpan.FromMilliseconds(timestamp);
+                DateTime dateTime = new DateTime(1970, 1, 1) + time;
+
+                int dow = (int)dateTime.DayOfWeek;
+                int hour = dateTime.TimeOfDay.Hours;
+                string timezone = TimeZoneInfo.Local.GetUtcOffset(dateTime).TotalMinutes.ToString(CultureInfo.InvariantCulture);
+
+                Assert.Equal(queryParams["tz"], timezone);
+                Assert.Equal(int.Parse(queryParams["hour"]), hour);
+                Assert.Equal(int.Parse(queryParams["dow"]), dow);
+                Assert.Equal(long.Parse(queryParams["timestamp"]), timestamp);
+            } else {
+                Assert.True(int.Parse(queryParams["tz"]) >= 0);
+                Assert.True(int.Parse(queryParams["hour"]) >= 0);
+                Assert.True(int.Parse(queryParams["dow"]) >= 0);
+                Assert.True(long.Parse(queryParams["timestamp"]) > 0);
+            }
+
+            //sdk related params
+            Assert.Equal(queryParams["av"], TestHelper.APP_VERSION);
+            Assert.Equal(queryParams["sdk_name"], Countly.Instance.sdkName());
+            Assert.Equal(queryParams["sdk_version"], TestHelper.SDK_VERSION);
+            Assert.Equal(queryParams["device_id"], deviceId);
+            Assert.Equal(queryParams["app_key"], appKey);
+            Assert.Equal("0", queryParams["t"]);
+        }
+
+        internal static void ValidateRequestInQueue(string deviceId, string appKey, IDictionary<string, object> paramaters, int rqIdx = 0, int rqSize = 1, long timestamp = 0, IDictionary<string, Action<string, object>> customValidators = null)
+        {
+            Assert.Equal(rqSize, Countly.Instance.StoredRequests.Count);
+            string request = Countly.Instance.StoredRequests.ElementAt(rqIdx).Request;
+            Dictionary<string, string> queryParams = TestHelper.GetParams(request);
+            TestHelper.ValidateBaseParams(queryParams, deviceId, appKey, timestamp);
+            Assert.Equal(10 + paramaters.Count, queryParams.Count);
+            foreach (KeyValuePair<string, object> item in paramaters) {
+                if (customValidators != null && customValidators.ContainsKey(item.Key)) {
+                    customValidators[item.Key].Invoke(queryParams[item.Key], item.Value);
+                } else {
+                    Assert.Equal(item.Value.ToString(), queryParams[item.Key]);
+                }
+            }
+        }
+
+        internal static IDictionary<string, T> DictGeneric<T>(params T[] values)
+        {
+            IDictionary<string, T> result = new Dictionary<string, T>();
+            if (values == null || values.Length == 0 || values.Length % 2 != 0) { return result; }
+
+            for (int i = 0; i < values.Length; i += 2) {
+                result[values[i].ToString()] = values[i + 1];
+            }
+
+            return result;
+        }
+
+        internal static Segmentation Segm(params string[] values)
+        {
+            Segmentation result = new Segmentation();
+            if (values == null || values.Length == 0 || values.Length % 2 != 0) { return result; }
+
+            for (int i = 0; i < values.Length; i += 2) {
+                result.Add(values[i], values[i + 1]);
+            }
+
+            return result;
+        }
+
+        internal static string Json(params object[] values)
+        {
+            return JsonConvert.SerializeObject(Dict(values).Where(p => p.Value != null)
+                .ToDictionary(p => p.Key, p => p.Value), Formatting.None, new JsonSerializerSettings() { NullValueHandling = NullValueHandling.Ignore });
+        }
+
+        internal static IDictionary<string, object> Dict(params object[] values)
+        {
+            return DictGeneric(values);
+        }
+
+        internal static IDictionary<string, string> DictS(params string[] values)
+        {
+            return DictGeneric(values);
         }
     }
 }

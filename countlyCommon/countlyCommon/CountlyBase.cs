@@ -1597,6 +1597,13 @@ namespace CountlySDK.CountlyCommon
                 UtilityHelper.CountlyLogging("[CountlyBase] ChangeDeviceId: New device id cannot be null or empty.");
                 return;
             }
+            DeviceId dId = await DeviceData.GetDeviceId();
+            string oldId = dId.deviceId;
+
+            if (newDeviceId.Equals(oldId)) {
+                UtilityHelper.CountlyLogging("[CountlyBase] ChangeDeviceId: New device id is equal to the current one, returning");
+                return;
+            }
 
             if (!serverSideMerge) {
                 //if no server side merge is needed, we just end the previous session and start a new session with the new id
@@ -1620,9 +1627,6 @@ namespace CountlySDK.CountlyCommon
                 }
             } else {
                 //need server merge, therefore send special request
-                DeviceId dId = await DeviceData.GetDeviceId();
-                string oldId = dId.deviceId;
-
                 //change device ID
                 await DeviceData.SetPreferredDeviceIdMethod(DeviceIdMethodInternal.developerSupplied, newDeviceId);
 
@@ -1638,6 +1642,27 @@ namespace CountlySDK.CountlyCommon
                 await AddRequest(request, true);
                 await Upload();
             }
+        }
+
+
+        /// <summary>
+        /// Set the device id
+        /// </summary>
+        /// <param name="newDeviceId">New Id that should be used</param>
+        /// <returns></returns>
+        public async Task SetId(string newDeviceId)
+        {
+            bool withMerge = true;
+
+            if (GetDeviceIDType().Equals(DeviceIdType.DeveloperProvided)) {
+                // an ID was provided by the host app previously
+                // we can assume that a device ID change with merge was executed previously
+                // now we change it without merging
+                withMerge = false;
+            }
+            UtilityHelper.CountlyLogging("[CountlyBase] SetId, newDeviceId: [" + newDeviceId + "], withMerge: [" + withMerge.ToString() + "]");
+
+            await ChangeDeviceId(newDeviceId, withMerge);
         }
 
         internal bool IsConsentGiven(ConsentFeatures feature)
